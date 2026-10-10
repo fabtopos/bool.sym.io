@@ -45,6 +45,14 @@ p { line-height: 1.6; }
 .intro-copy { color: var(--muted); margin: 0; font-size: 14px; }
 .example-picker { min-width: 254px; }
 .example-picker label { display: block; margin-bottom: 9px; }
+.module-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: -5px 0 23px; }
+.module-switch { display: flex; align-items: center; gap: 4px; padding: 4px; background: #fff; border: 1px solid #dfe6ed; border-radius: 9px; }
+.module-label { color: #8293a3; font-size: 9px; letter-spacing: 1.2px; padding: 0 12px 0 9px; }
+.module-switch button { display: flex; align-items: center; gap: 12px; padding: 9px 13px; color: #718599; font-size: 12px; background: transparent; border: 1px solid transparent; }
+.module-switch button span { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8da0b1; }
+.module-switch button[aria-pressed="true"] { color: #2d5270; background: #edf3f8; border-color: #dde7ef; }
+.module-switch button:hover { background: #f3f6f9; }
+#module-description { margin: 0; color: #8294a4; font-size: 11px; }
 select { padding: 12px 36px 12px 14px; width: 100%; font-size: 13px; box-shadow: 0 2px 2px #17344a03; }
 .network-summary { display: flex; justify-content: space-between; align-items: center; margin: 0 1px 15px; font-size: 12px; color: #61758a; }
 .summary-items { display: flex; gap: 0; }
@@ -78,6 +86,7 @@ select { padding: 12px 36px 12px 14px; width: 100%; font-size: 13px; box-shadow:
 .legend-dot.fixed { background: #ddb866; }
 .legend-dot.on { background: #198763; }
 .legend-dot.off { background: #c95353; }
+.legend-dot.middle { background: #e9ba3a; }
 .graph-hint { font-size: 9px; color: #a0adba; }
 .card { background: #fff; border: 1px solid #e0e6ed; border-radius: 10px; }
 .transport { margin: 19px 0 24px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 22px; }
@@ -118,6 +127,7 @@ input[type="range"] { width: 100%; margin: 10px 0 0; height: 3px; display: block
 code { display: inline-block; padding: 2px 5px; border-radius: 3px; background: #f1f4f7; color: #5b7590; font-size: 11px; }
 .syntax-constants { margin-left: auto; }
 .limit-note { margin: 13px 0 0; font-size: 10px; color: #9caab6; }
+.rule-semantics { margin: 12px 0 0; padding: 9px 11px; font-size: 10px; color: #71899f; background: #f4f7fa; border-radius: 5px; line-height: 1.7; }
 .initial-input-row { display: flex; align-items: center; gap: 12px; }
 .initial-input-row label { font-size: 11px; color: #73889c; white-space: nowrap; }
 .initial-input-row input { max-width: 200px; flex: 1; letter-spacing: 3px; font-size: 14px; background: #fcfdfe; }
@@ -129,6 +139,9 @@ code { display: inline-block; padding: 2px 5px; border-radius: 3px; background: 
 .bit-value { background: #e9eef4; padding: 8px 12px; font-size: 12px; align-self: stretch; display: flex; align-items: center; }
 .bit-toggle[aria-pressed="true"] { border-color: #a6bed3; color: #345e7e; }
 .bit-toggle[aria-pressed="true"] .bit-value { background: #dce9f3; }
+[data-module="ternary"] .bit-toggle[data-value="1"], [data-module="ternary"] .bit-toggle[data-value="2"] { border-color: #a6bed3; color: #345e7e; }
+[data-module="ternary"] .bit-toggle[data-value="1"] .bit-value { background: #e3edf5; }
+[data-module="ternary"] .bit-toggle[data-value="2"] .bit-value { background: #d4e4f1; }
 .bit-toggle:hover { border-color: #8da8bf; }
 .simulation-status { background: #f3f6f9; display: flex; gap: 12px; padding: 14px 16px; border: 1px solid #e9eef3; border-radius: 7px; color: #65829b; }
 .status-symbol { font-size: 20px; color: #7690a6; line-height: 25px; }
@@ -225,6 +238,12 @@ dialog form { margin-top: 23px; }
   .intro { flex-direction: column; gap: 20px; margin-bottom: 22px; }
   .example-picker { width: 100%; }
   .example-picker label { font-size: 9px; }
+  .module-toolbar { align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .module-switch { width: 100%; }
+  .module-label { font-size: 8px; padding: 0 6px; }
+  .module-switch button { justify-content: center; flex: 1; padding: 9px 7px; font-size: 11px; gap: 7px; }
+  .module-switch button span { font-size: 9px; }
+  #module-description { font-size: 10px; }
   .network-summary { font-size: 10px; }
   .summary-items span { padding: 0 10px; }
   .sync-label { font-size: 0; gap: 0; }

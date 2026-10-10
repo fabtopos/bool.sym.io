@@ -21,18 +21,20 @@ export const template = `
     <div class="example-picker"><label for="example-select">START WITH AN EXAMPLE</label><select id="example-select"></select></div>
   </section>
 
+  <div class="module-toolbar"><div class="module-switch" role="group" aria-label="Network module"><span class="module-label">MODULE</span><button id="mode-boolean" type="button" aria-pressed="true">Boolean <span>0 / 1</span></button><button id="mode-ternary" type="button" aria-pressed="false">Ternary <span>0 / 1 / 2</span></button></div><p id="module-description">Your rules are remembered in each module.</p></div>
+
   <div class="network-summary"><div class="summary-items"><span id="variable-count"></span><span id="state-count"></span><span id="attractor-count"></span></div><span class="sync-label"><span class="small-square"></span>Synchronous updates</span></div>
 
   <section class="visualizations" aria-label="Boolean network visualizations">
     <article class="graph-panel">
       <div class="panel-heading"><div class="panel-title"><span class="panel-number">01</span><div><h2>Phase Space Graph</h2><p>Every state. Every transition.</p></div></div><span class="panel-badge">STATIC MAP</span></div>
-      <div class="graph-stage"><div id="phase-graph" class="graph-canvas" role="img" aria-label="Complete static phase space. Use the transition table below for a text equivalent."></div>${viewportControls('phase')}<span class="canvas-note">F : {0, 1}ⁿ → {0, 1}ⁿ</span></div>
+      <div class="graph-stage"><div id="phase-graph" class="graph-canvas" role="img" aria-label="Complete static phase space. Use the transition table below for a text equivalent."></div>${viewportControls('phase')}<span class="canvas-note" id="phase-domain-note">F : {0, 1}ⁿ → {0, 1}ⁿ</span></div>
       <div class="graph-footer"><div class="legend"><span><i class="legend-dot transient"></i>Transient</span><span><i class="legend-dot cycle"></i>Periodic orbit</span><span><i class="legend-dot fixed"></i>Fixed point</span></div><span class="graph-hint">Scroll to zoom · drag to pan</span></div>
     </article>
     <article class="graph-panel">
       <div class="panel-heading"><div class="panel-title"><span class="panel-number">02</span><div><h2>Wiring Diagram</h2><p>Variables and their dependencies.</p></div></div><span class="panel-badge live-badge"><span></span>LIVE STATE</span></div>
       <div class="graph-stage"><div id="wiring-graph" class="graph-canvas" role="img" aria-label="Wiring diagram showing current Boolean values. The variable controls below provide a text equivalent."></div>${viewportControls('wiring')}<span class="canvas-note" id="wiring-state-note">x(0)</span></div>
-      <div class="graph-footer"><div class="legend"><span><i class="legend-dot on"></i>1 · ON</span><span><i class="legend-dot off"></i>0 · OFF</span><span class="edge-legend">↗ Dependency</span></div><span class="graph-hint">Drag nodes to arrange</span></div>
+      <div class="graph-footer"><div class="legend" id="wiring-legend"><span><i class="legend-dot on"></i>1 · ON</span><span><i class="legend-dot off"></i>0 · OFF</span><span class="edge-legend">↗ Dependency</span></div><span class="graph-hint">Drag nodes to arrange</span></div>
     </article>
   </section>
 
@@ -50,6 +52,7 @@ export const template = `
       </form>
       <p id="editor-error" class="error-message" role="alert" hidden></p>
       <div class="syntax-help"><span class="syntax-title">OPERATORS</span><code>!</code> NOT <code>&amp;&amp;</code> AND <code>^</code> XOR <code>||</code> OR <span class="syntax-constants">Constants <code>0</code> <code>1</code></span></div>
+      <p id="rule-semantics" class="rule-semantics" hidden></p>
       <p class="limit-note">1–8 variables · up to 256 states. The phase space grows as 2ⁿ.</p>
     </section>
 
@@ -70,5 +73,17 @@ export const template = `
   <footer class="site-footer"><span>bool.sym.io <span class="footer-divider">/</span> A finite state space. An open field of possibilities.</span><a href="https://github.com/fabtopos/bool.sym.io" target="_blank" rel="noreferrer">Source on GitHub ↗</a></footer>
 </main>
 
-<dialog id="guide-dialog" aria-labelledby="guide-title"><div class="dialog-heading"><h2 id="guide-title">A quick guide to Boolean dynamics</h2><button id="guide-close" class="icon-button" aria-label="Close guide">×</button></div><p>A Boolean network has variables that are either 0 or 1. At each step, all update rules read the same old state, and all variables change simultaneously.</p><div class="math-line">xᵢ(t + 1) = fᵢ(x₁(t), …, xₙ(t))</div><p><strong>The phase space</strong> maps every possible state and its single successor. Amber nodes are fixed points; violet nodes form periodic orbits. A basin contains all states that eventually reach the same attractor. This map stays static while you simulate.</p><p><strong>The wiring diagram</strong> connects a variable to each rule that references it. Its nodes show the current state: green for 1, red for 0. Drag the nodes to make the layout your own.</p><p>Edit rules, then select <strong>Apply network</strong>. Renaming a variable updates references in the other draft rules. A deleted variable must also be removed from rules that reference it.</p><p>Names may contain letters, numbers, and underscores, and must start with a letter or underscore. Names are case sensitive. The bit order is the row order in the editor.</p><p>Operator precedence, from highest to lowest: <code>!</code>, <code>&amp;&amp;</code>, <code>^</code>, <code>||</code>. Use parentheses to group expressions. Constants are <code>0</code> and <code>1</code>.</p><p>The trajectory stops on its first repeated state. A fixed point is reported separately; a periodic orbit lists its distinct states and period. Reset returns to your chosen initial configuration.</p><form method="dialog"><button class="button button-primary">Start exploring</button></form></dialog>
+<dialog id="guide-dialog" aria-labelledby="guide-title">
+  <div class="dialog-heading"><h2 id="guide-title">A quick guide to Boolean dynamics</h2><button id="guide-close" class="icon-button" aria-label="Close guide">×</button></div>
+  <p id="guide-intro"></p>
+  <div class="math-line">xᵢ(t + 1) = fᵢ(x₁(t), …, xₙ(t))</div>
+  <p><strong>The phase space</strong> maps every possible state and its single successor. Amber nodes are fixed points; violet nodes form periodic orbits. A basin contains all states that eventually reach the same attractor. This map stays static while you simulate.</p>
+  <p id="guide-wiring"></p>
+  <p>Edit rules, then select <strong>Apply network</strong>. Renaming a variable updates references in the other draft rules. A deleted variable must also be removed from rules that reference it.</p>
+  <p>Names may contain letters, numbers, and underscores, and must start with a letter or underscore. Names are case sensitive. The digit order is the row order in the editor.</p>
+  <p id="guide-rules"></p>
+  <p>Select a module to work with Boolean or ternary values. Each module remembers its rules and initial configuration for this visit. Switching modules pauses playback and starts the selected network at time zero.</p>
+  <p>The trajectory stops on its first repeated state. A fixed point is reported separately; a periodic orbit lists its distinct states and period. Reset returns to your chosen initial configuration.</p>
+  <form method="dialog"><button class="button button-primary">Start exploring</button></form>
+</dialog>
 `;

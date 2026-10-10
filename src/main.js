@@ -1,8 +1,7 @@
 import './styles.css';
-import { BooleanNetwork, MAX_VARIABLES } from './engine/network.js';
 import { analyzePhaseSpace } from './engine/phase-space.js';
 import { isVariableName } from './engine/parser.js';
-import { EXAMPLES } from './examples.js';
+import { MODULES } from './modules.js';
 import { PhaseGraph } from './graphs/phase-graph.js';
 import { WiringGraph } from './graphs/wiring-graph.js';
 import { SimulationController } from './simulation/controller.js';
@@ -21,6 +20,8 @@ let draft = [];
 let dirty = false;
 let invalidInitialState = false;
 let initialState = '';
+let activeModule = MODULES.boolean;
+const moduleStates = new Map();
 const simulation = new SimulationController({
   onChange: renderSimulation,
   onPlaybackChange: renderPlayback,
@@ -46,7 +47,7 @@ function updateControlAvailability() {
   const ended = Boolean(simulation.trajectory?.terminal);
   $('#play-button').disabled = dirty || invalidInitialState || ended;
   $('#step-button').disabled = dirty || invalidInitialState || ended || simulation.playing;
-  $('#add-variable').disabled = draft.length >= MAX_VARIABLES;
+  $('#add-variable').disabled = draft.length >= activeModule.maxVariables;
 }
 
 function renderEditor() {
@@ -64,9 +65,9 @@ function renderInitialControls() {
   invalidInitialState = false;
   $('#initial-state').value = initialState;
   $('#initial-state').setAttribute('aria-invalid', 'false');
-  $('#initial-hint').textContent = `Bit order: ${network.names.join(' · ')}. Setting an initial state resets time to zero.`;
+  $('#initial-hint').textContent = `${activeModule.orderLabel}: ${network.names.join(' · ')}. Setting an initial state resets time to zero.`;
   $('#initial-toggles').innerHTML = network.names.map((name, index) => `
-    <button type="button" class="bit-toggle" data-bit="${index}" aria-pressed="${initialState[index] === '1'}" aria-label="Initial value of ${escapeHTML(name)}: ${initialState[index]}">
+    <button type="button" class="bit-toggle" data-bit="${index}" data-value="${initialState[index]}" ${network.radix === 2 ? `aria-pressed="${initialState[index] === '1'}"` : ''} aria-label="Initial value of ${escapeHTML(name)}: ${initialState[index]}" title="Cycle value ${network.radix === 3 ? '0 → 1 → 2 → 0' : '0 → 1 → 0'}">
       <span class="bit-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span><span class="bit-value mono">${initialState[index]}</span>
     </button>`).join('');
   errorMessage('#initial-error', '');
@@ -90,9 +91,9 @@ function setInitialState(state) {
 
 /** Called exclusively after a valid network edit or loading an example. */
 function applyNetwork(definitions, state) {
-  const nextNetwork = new BooleanNetwork(definitions);
+  const nextNetwork = new activeModule.Network(definitions);
   nextNetwork.validateState(state);
-  const changed = !network || nextNetwork.variables.some((variable, index) => variable.name !== network.variables[index]?.name || variable.expression !== network.variables[index]?.expression) || nextNetwork.size !== network.size;
+  const changed = !network || nextNetwork.radix !== network.radix || nextNetwork.variables.some((variable, index) => variable.name !== network.variables[index]?.name || variable.expression !== network.variables[index]?.expression) || nextNetwork.size !== network.size;
   const nextAnalysis = changed ? analyzePhaseSpace(nextNetwork) : analysis;
   simulation.pause();
   network = nextNetwork;
@@ -173,9 +174,69 @@ function renderPlayback() {
   if (simulation.trajectory) renderSimulation(simulation.trajectory);
 }
 
-$('#example-select').innerHTML = EXAMPLES.map((example) => `<option value="${example.id}">${escapeHTML(example.name)}</option>`).join('') + '<option value="custom" disabled>Custom network</option>';
+function renderModule() {
+  $('#app').dataset.module = activeModule.id;
+  $('#app-title').textContent = activeModule.title;
+  document.title = `${activeModule.title} · bool.sym.io`;
+  $('#phase-domain-note').textContent = `F : ${activeModule.domain}ⁿ → ${activeModule.domain}ⁿ`;
+  $('label[for="initial-state"]').textContent = activeModule.inputLabel;
+  $('.limit-note').textContent = activeModule.limit;
+  $('.syntax-help').innerHTML = activeModule.syntax;
+  $('#rule-semantics').textContent = activeModule.ruleNote;
+  $('#rule-semantics').hidden = !activeModule.ruleNote;
+  $('#wiring-legend').innerHTML = activeModule.legend;
+  $('.visualizations').setAttribute('aria-label', `${activeModule.id === 'ternary' ? 'Ternary' : 'Boolean'} network visualizations`);
+  $('#guide-title').textContent = `A quick guide to ${activeModule.id === 'ternary' ? 'ternary' : 'Boolean'} dynamics`;
+  $('#guide-intro').textContent = activeModule.guideIntro;
+  $('#guide-wiring').textContent = activeModule.guideWiring;
+  $('#guide-rules').innerHTML = activeModule.guideRules;
+  $('#mode-boolean').setAttribute('aria-pressed', String(activeModule.id === 'boolean'));
+  $('#mode-ternary').setAttribute('aria-pressed', String(activeModule.id === 'ternary'));
+  $('#example-select').innerHTML = activeModule.examples.map((example) => `<option value="${example.id}">${escapeHTML(example.name)}</option>`).join('') + '<option value="custom" disabled>Custom network</option>';
+}
+
+function switchModule(id) {
+  if (id === activeModule.id || !MODULES[id]) return;
+  simulation.pause();
+  moduleStates.set(activeModule.id, {
+    definitions: network.variables.map(({ name, expression }) => ({ name, expression })),
+    initialState,
+    draft: draft.map((row) => ({ ...row })),
+    dirty,
+    exampleId: $('#example-select').value,
+    invalidInitialState,
+    stateInput: $('#initial-state').value,
+    editorError: $('#editor-error').textContent,
+    editorStatus: $('#editor-status').textContent,
+  });
+  activeModule = MODULES[id];
+  const saved = moduleStates.get(id);
+  const example = activeModule.examples[0];
+  renderModule();
+  applyNetwork(saved?.definitions || example.variables, saved?.initialState || example.initialState);
+  if (saved) {
+    draft = saved.draft;
+    dirty = saved.dirty;
+    renderEditor();
+    $('#editor-status').textContent = saved.editorStatus;
+    $('#editor-status').classList.toggle('dirty', dirty);
+    errorMessage('#editor-error', saved.editorError);
+    $('#example-select').value = saved.exampleId;
+    if (saved.invalidInitialState) {
+      $('#initial-state').value = saved.stateInput;
+      setInitialState(saved.stateInput);
+    }
+  }
+  const url = new URL(window.location.href);
+  if (id === 'ternary') url.searchParams.set('module', 'ternary');
+  else url.searchParams.delete('module');
+  window.history.replaceState(null, '', url);
+}
+
+$('#mode-boolean').addEventListener('click', () => switchModule('boolean'));
+$('#mode-ternary').addEventListener('click', () => switchModule('ternary'));
 $('#example-select').addEventListener('change', (event) => {
-  const example = EXAMPLES.find(({ id }) => id === event.target.value);
+  const example = activeModule.examples.find(({ id }) => id === event.target.value);
   if (example) applyNetwork(example.variables, example.initialState);
 });
 
@@ -199,7 +260,11 @@ function commitRenames() {
   if (!renames.size) return;
   const rows = [...$('#variable-rows').children];
   draft.forEach((row, index) => {
-    row.expression = row.expression.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (name) => renames.get(name) || name);
+    row.expression = row.expression.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (name, offset, source) => {
+      // Helper calls such as inc(A) remain functions if variable inc is renamed.
+      if (/^\s*\(/.test(source.slice(offset + name.length))) return name;
+      return renames.get(name) || name;
+    });
     rows[index].querySelector('[data-field="expression"]').value = row.expression;
   });
 }
@@ -216,7 +281,7 @@ $('#variable-rows').addEventListener('click', (event) => {
   $('#variable-rows').children[Math.min(index, draft.length - 1)].querySelector('input').focus();
 });
 $('#add-variable').addEventListener('click', () => {
-  if (draft.length >= MAX_VARIABLES) return;
+  if (draft.length >= activeModule.maxVariables) return;
   const used = new Set(draft.map(({ name }) => name));
   const name = 'ABCDEFGH'.split('').find((candidate) => !used.has(candidate)) || `X${draft.length + 1}`;
   draft.push({ name, expression: '0', sourceName: null, referenceName: name });
@@ -241,14 +306,7 @@ $('#network-form').addEventListener('submit', (event) => {
 
 $('#initial-state').addEventListener('input', (event) => {
   simulation.pause();
-  const state = event.target.value;
-  if (state.length === network.size && /^[01]+$/.test(state)) setInitialState(state);
-  else {
-    invalidInitialState = true;
-    $('#initial-state').setAttribute('aria-invalid', 'true');
-    errorMessage('#initial-error', `Enter exactly ${network.size} binary digits (0 or 1).`);
-    updateControlAvailability();
-  }
+  setInitialState(event.target.value);
 });
 $('#initial-state').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') { event.preventDefault(); setInitialState(event.target.value); }
@@ -259,7 +317,7 @@ $('#initial-toggles').addEventListener('click', (event) => {
   if (!button) return;
   const bits = [...initialState];
   const index = Number(button.dataset.bit);
-  bits[index] = bits[index] === '1' ? '0' : '1';
+  bits[index] = String((Number(bits[index]) + 1) % network.radix);
   setInitialState(bits.join(''));
   $('#initial-toggles').querySelector(`[data-bit="${index}"]`).focus();
 });
@@ -296,12 +354,15 @@ $('#export-history').addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'boolean-network-trajectory.csv';
+  link.download = `${activeModule.id}-network-trajectory.csv`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 window.addEventListener('pagehide', () => simulation.pause());
 
-applyNetwork(EXAMPLES[0].variables, EXAMPLES[0].initialState);
+const requestedModule = new URL(window.location.href).searchParams.get('module');
+if (requestedModule === 'ternary') activeModule = MODULES.ternary;
+renderModule();
+applyNetwork(activeModule.examples[0].variables, activeModule.examples[0].initialState);
 // Browser integration tests inspect actual graph instances, not a second graph model.
-if (import.meta.env.DEV) window.__booleanLab = { phaseGraph, wiringGraph, simulation, get network() { return network; } };
+if (import.meta.env.DEV) window.__booleanLab = { phaseGraph, wiringGraph, simulation, get network() { return network; }, get module() { return activeModule.id; } };

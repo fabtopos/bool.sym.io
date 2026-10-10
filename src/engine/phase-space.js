@@ -5,14 +5,15 @@ function canonicalOrbit(states) {
 }
 
 /**
- * Analyze the entire functional graph in O(2^n) walks after evaluating successors.
+ * Analyze the entire functional graph in O(radix^n) walks after evaluating successors.
  * Depth is the number of transitions needed to first enter an attractor.
  * Basin sizes include both transient and attractor states.
  */
 export function analyzePhaseSpace(network) {
-  const stateCount = 2 ** network.size;
+  const radix = network.radix ?? 2;
+  const stateCount = radix ** network.size;
   const states = Array.from({ length: stateCount }, (_, index) => {
-    const state = index.toString(2).padStart(network.size, '0');
+    const state = index.toString(radix).padStart(network.size, '0');
     return {
       id: state,
       state,

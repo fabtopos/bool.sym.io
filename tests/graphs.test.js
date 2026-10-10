@@ -122,12 +122,65 @@ describe('wiring graph rendering and updates', () => {
     const network = new BooleanNetwork(EXAMPLES[0].variables);
     graph.setNetwork(network, '000');
     const before = graph.cy.nodes().map((node) => node.data('value'));
-    for (const state of ['00', '012', '000\n', null, [0, 1, 2]]) {
+    for (const state of ['00', '012', '000\n', null, [0, 1, 2], ['0', '0', '0'], [false, 0, 0], [0, 0.5, 0], Array(3)]) {
       expect(() => graph.setState(state)).toThrow(/exactly 3 Boolean values/);
       expect(graph.cy.nodes().map((node) => node.data('value'))).toEqual(before);
     }
     graph.setState([1, 0, 1]);
     expect(graph.cy.nodes().map((node) => node.data('value'))).toEqual([1, 0, 1]);
+  });
+
+  it('renders ternary states in red, yellow, and green while preserving graph elements and positions', () => {
+    const preference = { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    vi.stubGlobal('matchMedia', vi.fn(() => preference));
+    const network = {
+      size: 3,
+      radix: 3,
+      names: ['A', 'B', 'C'],
+      variables: [
+        { name: 'A', dependencies: ['B'] },
+        { name: 'B', dependencies: ['C'] },
+        { name: 'C', dependencies: ['A'] },
+      ],
+    };
+    const graph = graphOf(WiringGraph);
+    graph.setNetwork(network, '012');
+    const nodes = graph.cy.nodes().toArray();
+    const edges = graph.cy.edges().toArray();
+    expect(nodes.map((node) => node.classes())).toEqual([['off'], ['middle'], ['on']]);
+    expect(nodes.map((node) => node.style('background-color'))).toEqual(['rgb(201,83,83)', 'rgb(233,186,58)', 'rgb(25,135,99)']);
+    expect(nodes[1].style('color')).toBe('rgb(61,50,20)');
+    nodes[0].position({ x: 310, y: 190 });
+    const positions = nodes.map((node) => ({ ...node.position() }));
+    graph.setState([2, 0, 1]);
+    expect(graph.cy.nodes().toArray()).toEqual(nodes);
+    expect(graph.cy.edges().toArray()).toEqual(edges);
+    expect(nodes.map((node) => node.position())).toEqual(positions);
+    expect(nodes.map((node) => node.data('value'))).toEqual([2, 0, 1]);
+    expect(nodes.map((node) => node.data('label'))).toEqual(['A\n2', 'B\n0', 'C\n1']);
+    expect(nodes.map((node) => node.classes())).toEqual([['on'], ['off'], ['middle']]);
+    expect(nodes.map((node) => node.style('background-color'))).toEqual(['rgb(25,135,99)', 'rgb(201,83,83)', 'rgb(233,186,58)']);
+    expect(nodes[1].style('color')).toBe('rgb(255,255,255)');
+  });
+
+  it('rejects invalid ternary states and network replacements before mutating the current graph', () => {
+    const graph = graphOf(WiringGraph);
+    const network = { ...new BooleanNetwork(EXAMPLES[0].variables), radix: 3 };
+    graph.setNetwork(network, '012');
+    const nodes = graph.cy.nodes().toArray();
+    const before = nodes.map((node) => ({ ...node.data() }));
+    for (const state of ['013', '01', '01A', '012\n', [0, 1, 3], [0, 1, -1], [0, 1, 1.5], ['0', '1', '2'], Array(3)]) {
+      expect(() => graph.setState(state)).toThrow(/exactly 3 ternary values/);
+      expect(nodes.map((node) => node.data())).toEqual(before);
+    }
+    expect(() => graph.setNetwork(new BooleanNetwork(EXAMPLES[0].variables), '012')).toThrow(/Boolean values/);
+    expect(graph.radix).toBe(3);
+    expect(graph.cy.nodes().toArray()).toEqual(nodes);
+    expect(nodes.map((node) => node.data())).toEqual(before);
+    graph.setNetwork(new BooleanNetwork(EXAMPLES[0].variables), '010');
+    expect(graph.radix).toBe(2);
+    expect(graph.cy.nodes()[1].hasClass('on')).toBe(true);
+    expect(() => graph.setState('012')).toThrow(/Boolean values/);
   });
 
   it('wraps complete long names inside the node label', () => {

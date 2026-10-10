@@ -10,7 +10,7 @@ export class Trajectory {
     this.visited = new Map([[initialState, 0]]);
   }
 
-  /** Advance once and return the current binary state. Terminal calls are no-ops. */
+  /** Advance once and return the current digit string. Terminal calls are no-ops. */
   step() {
     if (this.terminal) return this.currentState;
     const previous = this.currentState;

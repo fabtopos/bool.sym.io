@@ -15,6 +15,8 @@ export class BooleanNetwork {
       return definition.name;
     });
     if (new Set(names).size !== names.length) throw new Error('Variable names must be unique.');
+    this.radix = 2;
+    this.maxVariables = MAX_VARIABLES;
     this.names = Object.freeze(names);
     this.size = names.length;
     this.variables = Object.freeze(definitions.map(({ name, expression }) => {

@@ -55,7 +55,22 @@ try {
     await expect(page.locator('#terminal-message')).toContainText('Cycle detected. Period = 6.');
     await expect(page.locator('#current-time')).toHaveText('t = 6');
     await expect(page.locator('#history li')).toHaveCount(7);
-    console.log(`Production smoke passed at ${mount}: assets, rendering, synchronous step, reset, and period-six playback.`);
+    await page.locator('#mode-ternary').click();
+    await expect(page.getByRole('heading', { name: 'Ternary Network Simulator', exact: true })).toBeVisible();
+    await expect(page.locator('#state-count')).toHaveText('9 states');
+    await expect(page.locator('#current-state')).toHaveText('00');
+    await page.locator('#initial-state').fill('12');
+    await page.locator('#step-button').click();
+    await expect(page.locator('#current-state')).toHaveText('21');
+    await page.locator('#initial-state').fill('00');
+    await page.locator('#play-button').click();
+    await expect(page.locator('#terminal-message')).toContainText('Cycle detected. Period = 3.');
+    await expect(page.locator('#current-time')).toHaveText('t = 4');
+    await expect(page.locator('#history li')).toHaveCount(5);
+    await page.goto(`http://127.0.0.1:${server.address().port}${mount}?module=ternary`);
+    await expect(page.getByRole('heading', { name: 'Ternary Network Simulator', exact: true })).toBeVisible();
+    await expect(page.locator('#current-state')).toHaveText('00');
+    console.log(`Production smoke passed at ${mount}: assets, both modules, synchronous steps, resets, period-six/three playback, and direct ternary links.`);
   }
   assert.deepEqual(errors, [], 'Production JavaScript errors');
   assert.deepEqual(failedAssets, [], 'Missing production assets');
